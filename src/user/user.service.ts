@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { User } from "./entities/user.entity";
+import { User, UserRole } from "./entities/user.entity";
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -11,12 +11,12 @@ export class UserService {
     private usersRepository: Repository<User>,
   ) {}
 
-  async create(username: string, password: string): Promise<User | null> {
+  async create(username: string, password: string, role: UserRole = UserRole.USER): Promise<User | null> {
     const exist = await this.usersRepository.findOne({ where: { username } });
     if (exist) return null;
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = this.usersRepository.create({ username, password: hashed });
+    const user = this.usersRepository.create({ username, password: hashed, role });
     return this.usersRepository.save(user);
   }
 
@@ -34,26 +34,30 @@ export class UserService {
     return user;
   }
 
-  // 🔹 ดึง user ทั้งหมด
   async findAll(): Promise<User[]> {
     return this.usersRepository.find();
   }
 
-  // 🔹 ลบ user
   async delete(id: number): Promise<boolean> {
     const result = await this.usersRepository.delete(id);
     return (result.affected ?? 0) > 0;
-
   }
 
-  // 🔹 แก้ไข user
-  async update(id: number, username: string, password?: string): Promise<User | null> {
+  async update(
+    id: number,
+    username: string,
+    password?: string,
+    role?: UserRole,
+  ): Promise<User | null> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) return null;
 
     user.username = username;
     if (password) {
       user.password = await bcrypt.hash(password, 10);
+    }
+    if (role) {
+      user.role = role;
     }
 
     return this.usersRepository.save(user);
